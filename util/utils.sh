@@ -4,7 +4,10 @@
 # ROOT_DIR is set by schmerdr.sh (the dir this repo lives in) before sourcing.
 
 : "${ROOT_DIR:="$HOME/Documents/Repos/schmerdr"}"
-LAYOUT_ROOT="$ROOT_DIR/layouts"
+# Layouts are user data: keep them in a writable dir independent of the install
+# location, so a read-only (e.g. Homebrew) install still supports `schmerdr new`.
+# Override with SCHMERDR_LAYOUTS.
+LAYOUT_ROOT="${SCHMERDR_LAYOUTS:-${XDG_CONFIG_HOME:-$HOME/.config}/schmerdr/layouts}"
 
 # herdr binary — override with HERDR=/path/to/herdr if not on PATH.
 HERDR="${HERDR:-herdr}"

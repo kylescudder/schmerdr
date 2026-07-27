@@ -19,6 +19,7 @@ new_project() {
     printf 'schmerdr: layout "%s" already exists — use `schmerdr edit %s`\n' "$1" "$1" >&2
     return 1
   fi
+  mkdir -p "$LAYOUT_ROOT" || return 1
   cp "$ROOT_DIR/example.sh" "$LAYOUT_ROOT/$1.sh" || return 1
   "${EDITOR:-vi}" "$LAYOUT_ROOT/$1.sh"
 }
