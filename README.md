@@ -51,7 +51,7 @@ Available inside a layout template:
 | `rename_tab <label>` | Rename the current tab (e.g. the default tab a new workspace opens with, to avoid an empty "1") |
 | `split_right [ratio]` / `split_down [ratio]` | Split the current pane (`50%` or `0.5`) |
 | `run_command <cmd...>` | Run a command in the current pane |
-| `start_agent <kind> [name]` | Start an AI agent (claude, codex, gemini, …). `name` is the herdr agent/session name shown in the sidebar — pass a per-worktree value; defaults to the workspace name |
+| `start_agent <kind> [name]` | Start an AI agent (claude, codex, gemini, …). `name` sets **both** the herdr sidebar label (sanitized) and, for claude, the Claude session display name via `claude --name` (shown in the prompt box, `/resume` picker, and terminal title). Defaults to the workspace name; pass a per-worktree value |
 | `prompt_agent <text...>` | Submit an initial prompt to the agent in the current pane |
 | `focus_pane <id>` / `focus_tab <label>` | Focus a pane / a named tab |
 | `attach` | Focus the workspace and attach the herdr client |

@@ -136,33 +136,41 @@ _agent_name() {
 #         and passed as the first positional of `herdr agent start`.
 start_agent() {
   _kind="$1"
-  _aname=$(_agent_name "${2:-$NAME}")
+  _raw="${2:-$NAME}"
+  _aname=$(_agent_name "$_raw")
   [ -n "$CUR_PANE" ] || { printf 'schmerdr: start_agent with no current pane\n' >&2; return 1; }
+
+  # Build the agent-start argv once. For claude, forward `--name <raw>` to the
+  # launched process so BOTH names are set: the herdr sidebar label (sanitized
+  # $_aname) and the Claude session display name (human $_raw — shown in the
+  # prompt box, /resume picker, and terminal title). Other kinds: label only.
+  set -- agent start "$_aname" --kind "$_kind" --pane "$CUR_PANE"
+  [ "$_kind" = claude ] && set -- "$@" -- --name "$_raw"
+
   # If the target is the pane running `schmerdr load`, it's busy until this load
   # returns. Defer into the background: keep trying, and the instant the shell is
-  # free (load done) the agent takes over THIS pane — no extra tab, name kept.
+  # free the agent takes over THIS pane — no extra tab, names kept. Detach so the
+  # shell doesn't print a "[n]+ done" job notice into the pane.
   if [ -n "$HERDR_PANE_ID" ] && [ "$CUR_PANE" = "$HERDR_PANE_ID" ]; then
     _schmerdr_dbg "deferring agent '$_aname' into load pane $CUR_PANE (starts when load finishes)"
-    ( _dp="$CUR_PANE"; _dk="$_kind"; _dn="$_aname"; _dj=0
-      while [ "$_dj" -lt 120 ]; do
-        _do=$("$HERDR" agent start "$_dn" --kind "$_dk" --pane "$_dp" 2>&1)
-        printf '%s' "$_do" | grep -q '"error"' || exit 0
-        printf '%s' "$_do" | grep -q 'agent_pane_busy' || { printf 'schmerdr: deferred agent start failed: %s\n' "$_do" >&2; exit 1; }
-        _dj=$((_dj + 1)); sleep 0.25
+    ( _j=0
+      while [ "$_j" -lt 120 ]; do
+        _o=$("$HERDR" "$@" 2>&1)
+        printf '%s' "$_o" | grep -q '"error"' || exit 0
+        printf '%s' "$_o" | grep -q 'agent_pane_busy' || { printf 'schmerdr: deferred agent start failed: %s\n' "$_o" >&2; exit 1; }
+        _j=$((_j + 1)); sleep 0.25
       done
       printf 'schmerdr: deferred agent start timed out (pane stayed busy)\n' >&2
     ) >/dev/null 2>&1 &
-    # Detach the job so the shell doesn't print a "[n]+ done (...)" completion
-    # notice into the pane (it would land in the agent's input box).
     disown 2>/dev/null || true
     return 0
   fi
-  # herdr types the launch command into the pane's shell, so it must be at a
-  # ready prompt. A freshly-spawned pane may briefly be busy (e.g. a fastfetch
-  # greeting in your rc) -> code "agent_pane_busy". Retry only on that, ~5s.
+
+  # Fresh pane: herdr types the launch command into the pane's shell, so it must
+  # be at a ready prompt. Retry only while momentarily busy (e.g. an rc greeting).
   _i=0
   while :; do
-    _out=$("$HERDR" agent start "$_aname" --kind "$_kind" --pane "$CUR_PANE" 2>&1)
+    _out=$("$HERDR" "$@" 2>&1)
     printf '%s' "$_out" | grep -q '"error"' || { _schmerdr_dbg "agent '$_aname' started"; return 0; }
     if [ "$_i" -lt 20 ] && printf '%s' "$_out" | grep -q 'agent_pane_busy'; then
       _i=$((_i + 1)); sleep 0.25; continue
