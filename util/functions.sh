@@ -236,8 +236,17 @@ new_worktree() {
   _schmerdr_dbg "worktree workspace=$WS_ID pane=$CUR_PANE"
 }
 
-# focus_pane <id> : focus a specific pane and make it current.
-focus_pane() { _herdr pane focus "$1" >/dev/null && CUR_PANE="$1"; }
+# focus_pane <id> : make a specific pane current, and bring it into view by
+# focusing its tab. (herdr's `pane focus` only moves directionally — there's no
+# "focus pane by id" — so we focus the owning tab.) CUR_PANE is set even if the
+# herdr calls fail, since downstream verbs (e.g. start_agent) key off it.
+focus_pane() {
+  [ -n "$1" ] || { printf 'schmerdr: focus_pane with no pane id\n' >&2; return 1; }
+  _pg="$(_herdr pane get "$1" 2>/dev/null)"
+  _tb="$(_field "$_pg" '.result.pane.tab_id')"
+  [ -n "$_tb" ] && { _herdr tab focus "$_tb" >/dev/null 2>&1; CUR_TAB="$_tb"; }
+  CUR_PANE="$1"
+}
 
 # focus_home : return to the workspace's first pane — the one `schmerdr load` ran
 # in (pane 1). Set by new_workspace / use_current_workspace / new_worktree, and
@@ -275,19 +284,25 @@ focus_tab() {
 # CURRENT pane. The new pane becomes CUR_PANE.
 open_browser() {
   _url="$1"; _place="${2:-tab}"
-  [ -n "$_url" ]   || { printf 'schmerdr: open_browser needs a url\n' >&2; return 1; }
-  [ -n "$WS_ID" ]  || { printf 'schmerdr: open_browser with no workspace\n' >&2; return 1; }
+  [ -n "$_url" ] || { printf 'schmerdr: open_browser needs a url\n' >&2; return 1; }
   set -- plugin pane open --plugin official.browser --entrypoint browser \
-         --workspace "$WS_ID" --env "HERDR_BROWSER_INITIAL_URL=$_url" --focus
+         --env "HERDR_BROWSER_INITIAL_URL=$_url" --focus
+  # `tab` lands in the workspace; the others attach to an existing pane (herdr
+  # rejects --workspace for those — they need --target-pane instead).
   case "$_place" in
-    tab)            set -- "$@" --placement tab ;;
-    right|down)     set -- "$@" --placement split --direction "$_place"
-                    [ -n "$CUR_PANE" ] && set -- "$@" --target-pane "$CUR_PANE" ;;
-    overlay|zoomed) set -- "$@" --placement "$_place" ;;
+    tab)
+      [ -n "$WS_ID" ] && set -- "$@" --workspace "$WS_ID"
+      set -- "$@" --placement tab ;;
+    right|down)
+      [ -n "$CUR_PANE" ] || { printf 'schmerdr: open_browser %s: no current pane to split\n' "$_place" >&2; return 1; }
+      set -- "$@" --placement split --direction "$_place" --target-pane "$CUR_PANE" ;;
+    overlay|zoomed)
+      [ -n "$CUR_PANE" ] || { printf 'schmerdr: open_browser %s: no current pane\n' "$_place" >&2; return 1; }
+      set -- "$@" --placement "$_place" --target-pane "$CUR_PANE" ;;
     *) printf 'schmerdr: open_browser: bad placement "%s" (tab|right|down|overlay|zoomed)\n' "$_place" >&2; return 1 ;;
   esac
   _bp="$(_herdr "$@")" || return 1
-  _np="$(_field "$_bp" '.result.pane.pane_id // .result.root_pane.pane_id // .result.pane_id')"
+  _np="$(_field "$_bp" '.result.plugin_pane.pane.pane_id // .result.pane.pane_id // .result.root_pane.pane_id // .result.pane_id')"
   [ -n "$_np" ] && CUR_PANE="$_np"
   _schmerdr_dbg "open_browser url=$_url placement=$_place pane=${_np:-?}"
 }
