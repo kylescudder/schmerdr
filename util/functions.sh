@@ -117,6 +117,38 @@ run_command() {
   _herdr pane run "$CUR_PANE" "$*" >/dev/null
 }
 
+# --- sequential startup -----------------------------------------------------
+# Long-running siblings started at once (e.g. three `dotnet watch`) race on the
+# same obj/bin under shared libs and fail. These two verbs serialise a boot:
+# mark each service's "up" line with ready_when, then gate the next pane on it
+# with wait_ready — so only one build runs at a time and services come up in
+# order. The gate is TYPED INTO the waiting pane (not run by this script), so
+# `schmerdr load` returns immediately and a deferred agent still starts promptly.
+# It's also visible and interruptible: Ctrl-C a stuck wait and the queued command
+# (typed ahead) runs anyway.
+
+# ready_when <match> : record that the CURRENT pane's service is up once <match>
+# appears in its output. Call it right after launching the service.
+ready_when() {
+  [ -n "$CUR_PANE" ] || { printf 'schmerdr: ready_when with no current pane\n' >&2; return 1; }
+  PREV_PANE="$CUR_PANE"
+  PREV_READY="${1:-Now listening on}"
+  _schmerdr_dbg "ready_when pane=$PREV_PANE match='$PREV_READY'"
+}
+
+# wait_ready [timeout-ms] : in the CURRENT pane, block until the pane marked by
+# the last ready_when logs its match, then let the pane's next commands run.
+# Degrades safe: `herdr pane wait-output` exits non-zero on timeout, but since
+# commands aren't chained the service still starts. Default 5min covers a cold
+# first build; a real "up" line matches far sooner. (`herdr` must be on PATH in
+# the pane, per the install docs.)
+wait_ready() {
+  _to="${1:-300000}"
+  [ -n "$CUR_PANE" ]  || { printf 'schmerdr: wait_ready with no current pane\n' >&2; return 1; }
+  [ -n "$PREV_PANE" ] || { printf 'schmerdr: wait_ready before any ready_when\n' >&2; return 1; }
+  run_command "$HERDR pane wait-output $PREV_PANE --match '$PREV_READY' --timeout $_to"
+}
+
 # _agent_name <raw> : coerce a name to herdr's rules (must start with a-z, only
 # [a-z0-9_-], max 32 chars) so a branch like "feature/PROJ-1_thing" is accepted.
 _agent_name() {
@@ -207,14 +239,46 @@ new_worktree() {
 # focus_pane <id> : focus a specific pane and make it current.
 focus_pane() { _herdr pane focus "$1" >/dev/null && CUR_PANE="$1"; }
 
-# focus_tab <label> : focus a tab created earlier by name.
+# focus_tab <label> : focus a tab created earlier by name, and point CUR_PANE at
+# that tab's pane so run_command/wait_ready target it (not whatever pane the
+# script last touched). Prefers the tab's focused pane, falls back to its first.
+# NOTE: if that pane runs an agent (e.g. the Agents tab), run_command types into
+# the AGENT, not a shell — split a fresh pane first, or use a control-plane verb
+# like open_browser.
 focus_tab() {
   _id="$(printf '%s' "$_TAB_MAP" | tr ' ' '\n' | grep "^$1=" | head -1 | cut -d= -f2)"
-  if [ -n "$_id" ]; then
-    _herdr tab focus "$_id" >/dev/null && CUR_TAB="$_id"
-  else
-    printf 'schmerdr: no tab named "%s"\n' "$1" >&2; return 1
-  fi
+  [ -n "$_id" ] || { printf 'schmerdr: no tab named "%s"\n' "$1" >&2; return 1; }
+  _herdr tab focus "$_id" >/dev/null || return 1
+  CUR_TAB="$_id"
+  _pl="$(_herdr pane list --workspace "$WS_ID" 2>/dev/null)"
+  _np="$(printf '%s' "$_pl" | jq -r --arg t "$_id" \
+      '[.result.panes[]? | select(.tab_id==$t)] | ((map(select(.focused==true)) + .)[0]).pane_id // empty' 2>/dev/null)"
+  [ -n "$_np" ] && CUR_PANE="$_np"
+  _schmerdr_dbg "focus_tab '$1' -> tab=$CUR_TAB pane=${_np:-unchanged}"
+}
+
+# open_browser <url> [placement] : open herdr's built-in browser plugin pane at
+# <url>. This is a control-plane action (herdr opens the pane itself) — do NOT try
+# to open a browser via run_command, which only types text into a shell/agent.
+# placement: tab (default) | right | down | overlay | zoomed. right/down split the
+# CURRENT pane. The new pane becomes CUR_PANE.
+open_browser() {
+  _url="$1"; _place="${2:-tab}"
+  [ -n "$_url" ]   || { printf 'schmerdr: open_browser needs a url\n' >&2; return 1; }
+  [ -n "$WS_ID" ]  || { printf 'schmerdr: open_browser with no workspace\n' >&2; return 1; }
+  set -- plugin pane open --plugin official.browser --entrypoint browser \
+         --workspace "$WS_ID" --env "HERDR_BROWSER_INITIAL_URL=$_url" --focus
+  case "$_place" in
+    tab)            set -- "$@" --placement tab ;;
+    right|down)     set -- "$@" --placement split --direction "$_place"
+                    [ -n "$CUR_PANE" ] && set -- "$@" --target-pane "$CUR_PANE" ;;
+    overlay|zoomed) set -- "$@" --placement "$_place" ;;
+    *) printf 'schmerdr: open_browser: bad placement "%s" (tab|right|down|overlay|zoomed)\n' "$_place" >&2; return 1 ;;
+  esac
+  _bp="$(_herdr "$@")" || return 1
+  _np="$(_field "$_bp" '.result.pane.pane_id // .result.root_pane.pane_id // .result.pane_id')"
+  [ -n "$_np" ] && CUR_PANE="$_np"
+  _schmerdr_dbg "open_browser url=$_url placement=$_place pane=${_np:-?}"
 }
 
 # attach : focus the workspace. If run from OUTSIDE herdr, also attach an

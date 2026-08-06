@@ -3,8 +3,8 @@
 # `schmerdr new <name>` copies this file to layouts/<name>.sh for you to edit.
 # `schmerdr load <name> [args...]` sources it; args arrive here as $1, $2, ...
 #
-# The DSL (project_root, new_workspace, new_tab, split_*, run_command,
-# start_agent, prompt_agent, new_worktree, focus_tab, attach) is already in scope.
+# The DSL (project_root, new_workspace, new_tab, split_*, run_command, ready_when,
+# wait_ready, start_agent, prompt_agent, new_worktree, focus_tab, attach) is in scope.
 #
 # Args from `schmerdr load` arrive as $1, $2, ... This template uses:
 #   $1 = Claude session name (differs per worktree; defaults to the branch)
@@ -22,11 +22,15 @@ new_workspace
 # Reuse the workspace's default tab instead of leaving an empty "1".
 rename_tab "api"
 run_command "dotnet run --launch-profile ${2:-Development}"
+# Mark this service "up" once it logs this line, so dependents can wait for it.
+# Serialises a boot: sibling builds won't race over shared obj/bin, node_modules.
+ready_when "Now listening on"
 
 # --- tab: web (editor left, dev server right) -------------------------------
 new_tab "web"
 run_command "nvim"
 split_right 40%
+wait_ready                    # hold the dev server until the api above is up
 run_command "npm run dev"
 
 # --- tab: agents ------------------------------------------------------------
