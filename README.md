@@ -57,6 +57,7 @@ Available inside a layout template:
 | `prompt_agent <text...>` | Submit an initial prompt to the agent in the current pane |
 | `focus_pane <id>` / `focus_tab <label>` | Focus a pane / a named tab. `focus_tab` also points the current pane at that tab's pane, so later `run_command`s target it |
 | `open_browser <url> [placement]` | Open herdr's browser plugin pane at `<url>` (`tab` \| `right` \| `down` \| `overlay` \| `zoomed`). A control-plane action — don't try to open a browser via `run_command` |
+| `focus_home` | Return to the workspace's first pane (the one `schmerdr load` ran in). Lets you lay out every other tab/pane first and start the agent last, into a settled layout |
 | `attach` | Focus the workspace and attach the herdr client |
 
 See `example.sh` for a full template.

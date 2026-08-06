@@ -53,7 +53,7 @@ new_workspace() {
     printf 'schmerdr: workspace create returned no id — aborting layout\n' >&2
     WS_ID=""; CUR_TAB=""; CUR_PANE=""; return 1
   }
-  _TAB_MAP=""
+  _TAB_MAP=""; HOME_PANE="$CUR_PANE"
   _schmerdr_dbg "workspace=$WS_ID tab=$CUR_TAB pane=$CUR_PANE"
 }
 
@@ -73,7 +73,7 @@ use_current_workspace() {
     printf 'schmerdr: could not resolve current workspace from pane %s\n' "$_p" >&2
     WS_ID=""; CUR_TAB=""; CUR_PANE=""; return 1
   }
-  _TAB_MAP=""
+  _TAB_MAP=""; HOME_PANE="$CUR_PANE"
   _schmerdr_dbg "using current workspace=$WS_ID tab=$CUR_TAB pane=$CUR_PANE"
 }
 
@@ -232,12 +232,23 @@ new_worktree() {
   CUR_TAB="$(_field "$_wt" '.result.tab.tab_id')"
   CUR_PANE="$(_field "$_wt" '.result.root_pane.pane_id')"
   [ -z "$CUR_PANE" ] && CUR_PANE="$(_current_pane)"
-  _TAB_MAP=""
+  _TAB_MAP=""; HOME_PANE="$CUR_PANE"
   _schmerdr_dbg "worktree workspace=$WS_ID pane=$CUR_PANE"
 }
 
 # focus_pane <id> : focus a specific pane and make it current.
 focus_pane() { _herdr pane focus "$1" >/dev/null && CUR_PANE="$1"; }
+
+# focus_home : return to the workspace's first pane — the one `schmerdr load` ran
+# in (pane 1). Set by new_workspace / use_current_workspace / new_worktree, and
+# survives splits (splitting a pane keeps the original). Handy for laying out all
+# the other tabs/panes first and starting the agent LAST, into a settled layout:
+# it also restores the CUR_PANE == HERDR_PANE_ID condition start_agent needs to
+# take over the load pane.
+focus_home() {
+  [ -n "$HOME_PANE" ] || { printf 'schmerdr: focus_home: no home pane (call new_workspace/use_current_workspace first)\n' >&2; return 1; }
+  focus_pane "$HOME_PANE"
+}
 
 # focus_tab <label> : focus a tab created earlier by name, and point CUR_PANE at
 # that tab's pane so run_command/wait_ready target it (not whatever pane the

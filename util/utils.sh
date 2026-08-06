@@ -13,7 +13,7 @@ LAYOUT_ROOT="${SCHMERDR_LAYOUTS:-${XDG_CONFIG_HOME:-$HOME/.config}/schmerdr/layo
 HERDR="${HERDR:-herdr}"
 
 # Version — keep in sync with the git tag / Homebrew formula on each release.
-SCHMERDR_VERSION="0.2.1"
+SCHMERDR_VERSION="0.2.2"
 
 # show_version : print just the version (for `schmerdr --version` / `-v`).
 show_version() { printf 'schmerdr %s\n' "$SCHMERDR_VERSION"; }

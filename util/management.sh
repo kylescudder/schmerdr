@@ -32,7 +32,7 @@ load_project() {
   # a previous load in this shell (e.g. if new_workspace fails, downstream funcs
   # fail fast instead of hitting a now-closed workspace). ROOT defaults to the
   # invocation dir (usually a worktree); the template may override via project_root.
-  ROOT="$PWD"; WS_ID=""; CUR_TAB=""; CUR_PANE=""; _TAB_MAP=""; PREV_PANE=""; PREV_READY=""
+  ROOT="$PWD"; WS_ID=""; CUR_TAB=""; CUR_PANE=""; _TAB_MAP=""; PREV_PANE=""; PREV_READY=""; HOME_PANE=""
   # shellcheck disable=SC1090  # dynamic path is intentional
   . "$LAYOUT_ROOT/$_name.sh" "$@"
 }
