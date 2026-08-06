@@ -23,6 +23,8 @@ schmerdr() {
   case "$_cmd" in
     -h | --help | help | "")
       show_help ;;
+    -v | --version | version)
+      show_version ;;
     new | new_project)
       if [ -n "$1" ]; then new_project "$1"; else show_help; return 1; fi ;;
     edit | edit_project)

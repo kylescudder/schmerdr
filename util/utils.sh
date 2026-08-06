@@ -12,9 +12,15 @@ LAYOUT_ROOT="${SCHMERDR_LAYOUTS:-${XDG_CONFIG_HOME:-$HOME/.config}/schmerdr/layo
 # herdr binary — override with HERDR=/path/to/herdr if not on PATH.
 HERDR="${HERDR:-herdr}"
 
+# Version — keep in sync with the git tag / Homebrew formula on each release.
+SCHMERDR_VERSION="0.2.1"
+
+# show_version : print just the version (for `schmerdr --version` / `-v`).
+show_version() { printf 'schmerdr %s\n' "$SCHMERDR_VERSION"; }
+
 show_help() {
   cat <<EOF
-schmerdr — template-driven workspace launcher for herdr
+schmerdr $SCHMERDR_VERSION — template-driven workspace launcher for herdr
 
   Layouts live in: $LAYOUT_ROOT
   Template scaffold: $ROOT_DIR/example.sh
@@ -25,6 +31,7 @@ schmerdr — template-driven workspace launcher for herdr
     schmerdr load   <name> [args...]  build the workspace from <name>.sh
                                       (args are passed to the template as \$1, \$2, ...)
     schmerdr check  <name>            check whether a layout exists
+    schmerdr version                  print the version (also -v, --version)
     schmerdr help                     show this message
 
   Example:
