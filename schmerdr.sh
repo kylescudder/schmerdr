@@ -1,7 +1,7 @@
 #! /bin/sh
 
 # schmerdr — template-driven workspace launcher for herdr.
-# Install: add `source ~/Documents/Repos/schmerdr/schmerdr.sh` to your ~/.zshrc
+# Install: add `source ~/Development/Repos/schmerdr/schmerdr.sh` to your ~/.zshrc
 
 # Resolve the directory this file lives in (works when sourced), so every
 # other path can be absolute — no dependence on the current working directory.
@@ -10,7 +10,7 @@ if [ -n "$ZSH_VERSION" ]; then
 elif [ -n "$BASH_VERSION" ]; then
   ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 else
-  ROOT_DIR="${ROOT_DIR:-$HOME/Documents/Repos/schmerdr}"
+  ROOT_DIR="${ROOT_DIR:-$HOME/Development/Repos/schmerdr}"
 fi
 export ROOT_DIR
 

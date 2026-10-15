@@ -12,7 +12,7 @@ commands, and agents.
 
 ```sh
 # Add to ~/.zshrc
-source ~/Documents/Repos/schmerdr/schmerdr.sh
+source ~/Development/Repos/schmerdr/schmerdr.sh
 ```
 
 Requires `herdr` on your `PATH` (or set `HERDR=/path/to/herdr`) and `jq`.

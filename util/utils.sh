@@ -3,7 +3,7 @@
 # schmerdr — paths, help text, and small internal helpers.
 # ROOT_DIR is set by schmerdr.sh (the dir this repo lives in) before sourcing.
 
-: "${ROOT_DIR:="$HOME/Documents/Repos/schmerdr"}"
+: "${ROOT_DIR:="$HOME/Development/Repos/schmerdr"}"
 # Layouts are user data: keep them in a writable dir independent of the install
 # location, so a read-only (e.g. Homebrew) install still supports `schmerdr new`.
 # Override with SCHMERDR_LAYOUTS.
